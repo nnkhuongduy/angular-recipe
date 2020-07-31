@@ -6,5 +6,9 @@ import { Component } from '@angular/core';
   styleUrls: ['./app.component.css']
 })
 export class AppComponent {
-  title = 'recipe-project';
+  loadedFeature = 'recipe';
+
+  onSelectFeature(feature: string) {
+    this.loadedFeature = feature;
+  }
 }
