@@ -1,30 +1,58 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ComponentFactoryResolver, ViewChild, ComponentFactory, ViewContainerRef, ComponentRef, OnDestroy } from '@angular/core';
 import { NgForm } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Observable } from 'rxjs';
+import { Observable, Subscription } from 'rxjs';
 
 import { AuthService, AuthResponeData } from './auth.service';
+import { AlertComponent } from 'src/app/shared/alert/alert/alert.component';
+import { PlaceholderDirective } from 'src/app/shared/placeholder.directive';
 
 @Component({
   selector: 'app-auth',
   templateUrl: './auth.component.html',
   styleUrls: ['./auth.component.css']
 })
-export class AuthComponent implements OnInit {
+export class AuthComponent implements OnInit, OnDestroy {
+  private closeSub: Subscription;
+  @ViewChild(PlaceholderDirective) alertHost: PlaceholderDirective;
   isSignIn = true;
   isLoading = false;
   error: string = null;
 
-  constructor(private authService: AuthService, private router: Router) { }
+  constructor(
+    private authService: AuthService,
+    private router: Router,
+    private componentFactoryResolver: ComponentFactoryResolver) { }
 
   ngOnInit(): void {
   }
 
-  onSwitchMode() {
+  ngOnDestroy(): void {
+    if (this.closeSub) {
+      this.closeSub.unsubscribe();
+    }
+  }
+
+  private showErrorAlert(message: string): void {
+    const alertCmpFactory: ComponentFactory<AlertComponent> = this.componentFactoryResolver.resolveComponentFactory(AlertComponent);
+    const hostViewContainerRef: ViewContainerRef = this.alertHost.viewContainerRef;
+
+    hostViewContainerRef.clear();
+
+    const componentRef: ComponentRef<AlertComponent> = hostViewContainerRef.createComponent(alertCmpFactory);
+
+    componentRef.instance.message = message;
+    this.closeSub = componentRef.instance.accept.subscribe(() => {
+      this.closeSub.unsubscribe();
+      hostViewContainerRef.clear();
+    });
+  }
+
+  onSwitchMode(): void {
     this.isSignIn = !this.isSignIn;
   }
 
-  onSubmit(form: NgForm) {
+  onSubmit(form: NgForm): void {
     if (form.invalid) {
       return;
     }
@@ -49,9 +77,14 @@ export class AuthComponent implements OnInit {
     }, error => {
       this.isLoading = false;
       this.error = error;
+      this.showErrorAlert(error);
     });
 
     form.reset();
+  }
+
+  onErrorHandle(): void {
+    this.error = null;
   }
 
 }

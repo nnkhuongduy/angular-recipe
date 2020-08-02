@@ -4,6 +4,14 @@ import { catchError, tap } from 'rxjs/operators';
 import { throwError, BehaviorSubject } from 'rxjs';
 
 import { User } from './user.model';
+import { Router } from '@angular/router';
+
+interface UserInterface {
+  email: string;
+  id: string;
+  _token: string;
+  _tokenExpirationDate: string;
+}
 
 export interface AuthResponeData {
   idToken: string;
@@ -18,7 +26,7 @@ export interface AuthResponeData {
 export class AuthService {
   user = new BehaviorSubject<User>(null);
 
-  constructor(private http: HttpClient) { }
+  constructor(private http: HttpClient, private router: Router) { }
 
   private errorHandler(errorRes: HttpErrorResponse) {
     let errorMessage = 'An unknown error occurred!';
@@ -40,9 +48,11 @@ export class AuthService {
   }
 
   private authenticationHandler(email: string, userId: string, token: string, expiresIn: number) {
-    const expirationDate = new Date(new Date().getTime() + +expiresIn * 1000);
+    const expirationDate = new Date(new Date().getTime() + expiresIn * 1000);
     const user = new User(email, userId, token, expirationDate);
     this.user.next(user);
+    localStorage.setItem('userData', JSON.stringify(user));
+    this.autoSignout(expiresIn * 1000);
   }
 
   signup(email: string, password: string) {
@@ -65,5 +75,33 @@ export class AuthService {
         returnSecureToken: true
       })
       .pipe(catchError(this.errorHandler), tap(resData => this.authenticationHandler(resData.email, resData.localId, resData.idToken, +resData.expiresIn)));
+  }
+
+  signout() {
+    this.user.next(null);
+    this.router.navigate(['/auth']);
+    localStorage.removeItem('userData');
+  }
+
+  autoSignin() {
+    const userData: UserInterface = JSON.parse(localStorage.getItem('userData'));
+
+    if (!userData) {
+      return;
+    }
+
+    const loadedUser: User = new User(userData.email, userData.id, userData._token, new Date(userData._tokenExpirationDate));
+
+    if (loadedUser.token) {
+      this.user.next(loadedUser);
+      const expirationDuration: number = new Date(userData._tokenExpirationDate).getTime() - new Date().getTime();
+      this.autoSignout(expirationDuration);
+    }
+  }
+
+  autoSignout(expirationDuration: number) {
+    setTimeout(() => {
+      this.signout();
+    }, expirationDuration);
   }
 }
