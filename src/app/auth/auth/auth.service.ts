@@ -2,10 +2,13 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { catchError, tap } from 'rxjs/operators';
 import { throwError, BehaviorSubject } from 'rxjs';
-import { environment } from '../../../environments/environment';
-
-import { User } from './user.model';
 import { Router } from '@angular/router';
+import { Store } from '@ngrx/store';
+
+import { environment } from '../../../environments/environment';
+import { User } from './user.model';
+import * as fromApp from '../../store/app.reducer';
+import { SignIn, SignOut } from './store/auth.actions';
 
 interface UserInterface {
   email: string;
@@ -25,9 +28,9 @@ export interface AuthResponeData {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  user = new BehaviorSubject<User>(null);
+  // user = new BehaviorSubject<User>(null);
 
-  constructor(private http: HttpClient, private router: Router) { }
+  constructor(private http: HttpClient, private router: Router, private store: Store<fromApp.AppState>) { }
 
   private errorHandler(errorRes: HttpErrorResponse) {
     let errorMessage = 'An unknown error occurred!';
@@ -51,7 +54,8 @@ export class AuthService {
   private authenticationHandler(email: string, userId: string, token: string, expiresIn: number) {
     const expirationDate = new Date(new Date().getTime() + expiresIn * 1000);
     const user = new User(email, userId, token, expirationDate);
-    this.user.next(user);
+    // this.user.next(user);
+    this.store.dispatch(new SignIn({ email, userId, token, expirationDate }));
     localStorage.setItem('userData', JSON.stringify(user));
     this.autoSignout(expiresIn * 1000);
   }
@@ -79,7 +83,8 @@ export class AuthService {
   }
 
   signout() {
-    this.user.next(null);
+    // this.user.next(null);
+    this.store.dispatch(new SignOut());
     this.router.navigate(['/auth']);
     localStorage.removeItem('userData');
   }
@@ -94,7 +99,8 @@ export class AuthService {
     const loadedUser: User = new User(userData.email, userData.id, userData._token, new Date(userData._tokenExpirationDate));
 
     if (loadedUser.token) {
-      this.user.next(loadedUser);
+      // this.user.next(loadedUser);
+      this.store.dispatch(new SignIn({ email: loadedUser.email, userId: loadedUser.id, token: loadedUser.token, expirationDate: new Date(userData._tokenExpirationDate) }));
       const expirationDuration: number = new Date(userData._tokenExpirationDate).getTime() - new Date().getTime();
       this.autoSignout(expirationDuration);
     }
