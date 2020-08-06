@@ -11,7 +11,8 @@
     "dev:ssr": "ng run recipe-project:serve-ssr",
     "serve:ssr": "node dist/recipe-project/server/main.js",
     "build:ssr": "ng build --prod && ng run recipe-project:server:production",
-    "prerender": "ng run recipe-project:prerender"
+    "prerender": "ng run recipe-project:prerender",
+    "postinstall": "npm run build:ssr"
   },
   "private": true,
   "dependencies": {
